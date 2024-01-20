@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Use Spring Boot Starter Parent to simplify dependency management and versioning -->
+    <!--
+    A Maven parent is a centralized project configuration and management file, typically named pom.xml,
+    that contains shared settings, dependencies, and plugins for multiple related Maven projects.
+    It allows for the uniform management of configurations across multiple child projects, promoting
+    consistency and ease of maintenance.
+     -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.2</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <!--
+    In Maven, the groupId is a unique identifier for a project's group or organization,
+    while the artifactId is a unique name for the project or module within that group.
+    Together, they form a globally unique identifier for a Maven project,
+    facilitating its proper identification and dependency management.
+    -->
+    <groupId>com.melouk.personal</groupId>
+    <artifactId>CurrencyExchange</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <!--
+    Define some properties, such as the java version to use for compilation and building the project
+    -->
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- Define external libraries we would import to use for building the project -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <!--The library is only used for testing purposes, doesn't need to be in the final produced jar-->
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
