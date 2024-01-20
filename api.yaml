@@ -1,0 +1,82 @@
+openapi: 3.0.0
+info:
+  title: Currency Exchange API
+  version: 1.0.0
+paths:
+  /convert:
+    get:
+      summary: Convert Currency
+      description: Convert an amount from one currency to another.
+      parameters:
+        - name: amount
+          in: query
+          description: The amount to convert, must be positive.
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: 0
+            exclusiveMinimum: true
+          example: "100.21"
+        - name: from
+          in: query
+          description: The source currency code.
+          required: true
+          schema:
+            type: string
+          example: USD
+        - name: to
+          in: query
+          description: The target currency code.
+          required: true
+          schema:
+            type: string
+          example: EUR
+      responses:
+        '200':
+          description: Successful conversion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    description: The source currency code.
+                    type: string
+                    example: USD
+                  to:
+                    description: The target currency code.
+                    type: string
+                    example: EUR
+                  original:
+                    description: The original queried account.
+                    type: number
+                    format: double
+                    minimum: 0
+                    exclusiveMinimum: true
+                  converted:
+                    description: The converted account.
+                    type: number
+                    format: double
+                    minimum: 0
+                    exclusiveMinimum: true
+                  timestamp:
+                    description: UTC timestamp when the conversion rate was updated
+                    type: string
+                    format: date-time
+                required:
+                  - from
+                  - to
+                  - original
+                  - converted
+                  - timestamp
+              example:
+                original: 100.21
+                converted: 91.81
+                from: USD
+                to: EUR
+                timestamp: 1705767917
+        '400':
+          description: Bad Request for example missing a query parameter or negative values.
+        '404':
+          description: Currency not found
