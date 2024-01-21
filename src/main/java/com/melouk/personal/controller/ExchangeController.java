@@ -1,15 +1,10 @@
-package com.melouk.personal;
+package com.melouk.personal.controller;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonValue;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MissingServletRequestParameterException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
@@ -20,10 +15,13 @@ import java.util.Optional;
 
 @RestController
 public class ExchangeController {
-    @Autowired
-    private RestTemplate restTemplate;
-    @Value("${API_TOKEN:dummy_token}")
-    private String token;
+    private final RestTemplate restTemplate;
+    private final String token;
+
+    public ExchangeController(RestTemplate restTemplate, @Value("${API_TOKEN:dummy_token}") String token) {
+        this.restTemplate = restTemplate;
+        this.token = token;
+    }
 
     @GetMapping("/convert")
     public ConversionResult convert(
@@ -48,30 +46,6 @@ public class ExchangeController {
                 .orElseGet(() -> ZonedDateTime.now().withZoneSameInstant(ZoneId.of("UTC")));
         return new ConversionResult(from, to, epochTimestamp, amount, amount * rateValue);
     }
-
-    @ControllerAdvice
-    public static class GlobalExceptionHandler {
-
-        @ExceptionHandler({MissingServletRequestParameterException.class, IllegalArgumentException.class})
-        @ResponseStatus(HttpStatus.BAD_REQUEST)
-        public ResponseEntity<Problem> handleInputException(Exception e) {
-            return new ResponseEntity<>(new Problem(e.getMessage(), HttpStatus.BAD_REQUEST.value()), HttpStatus.BAD_REQUEST);
-        }
-
-        @ExceptionHandler(IllegalStateException.class)
-        @ResponseStatus(HttpStatus.NOT_FOUND)
-        public ResponseEntity<Problem> handleNotFoundException(Exception e) {
-            return new ResponseEntity<>(new Problem(e.getMessage(), HttpStatus.NOT_FOUND.value()), HttpStatus.NOT_FOUND);
-        }
-
-        @ExceptionHandler(Exception.class)
-        @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-        public ResponseEntity<Problem> handleOtherException(Exception e) {
-            return new ResponseEntity<>(new Problem("Something wrong happen, contact a specialist!",
-                    HttpStatus.INTERNAL_SERVER_ERROR.value()), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
 
     public record ConversionResult(String from, String to, ZonedDateTime timestamp, double original, double converted) {
     }

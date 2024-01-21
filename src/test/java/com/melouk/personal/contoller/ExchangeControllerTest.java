@@ -1,6 +1,7 @@
-package com.melouk.personal;
+package com.melouk.personal.contoller;
 
-import com.melouk.personal.ExchangeController.ExchangeRateExternalResponse;
+import com.melouk.personal.controller.ExchangeController;
+import com.melouk.personal.controller.ExchangeController.ExchangeRateExternalResponse;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

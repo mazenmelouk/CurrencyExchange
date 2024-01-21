@@ -1,4 +1,4 @@
-package com.melouk.personal;
+package com.melouk.personal.config;
 
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
