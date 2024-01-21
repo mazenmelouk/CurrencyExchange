@@ -1,26 +1,22 @@
 package com.melouk.personal.controller;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import org.springframework.beans.factory.annotation.Value;
+import com.melouk.personal.external.ExchangeRateClient;
+import com.melouk.personal.external.ExchangeRateExternalResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
 public class ExchangeController {
-    private final RestTemplate restTemplate;
-    private final String token;
+    private final ExchangeRateClient exchangeRateClient;
 
-    public ExchangeController(RestTemplate restTemplate, @Value("${API_TOKEN:dummy_token}") String token) {
-        this.restTemplate = restTemplate;
-        this.token = token;
+    public ExchangeController(ExchangeRateClient exchangeRateClient) {
+        this.exchangeRateClient = exchangeRateClient;
     }
 
     @GetMapping("/convert")
@@ -32,8 +28,7 @@ public class ExchangeController {
         if (amount <= 0) {
             throw new IllegalArgumentException("Parameter 'amount' needs to be greater than 0.");
         }
-        var uri = String.format("https://v6.exchangerate-api.com/v6/%s/latest/%s", token, from);
-        var rateResponse = restTemplate.getForObject(uri, ExchangeRateExternalResponse.class);
+        var rateResponse = exchangeRateClient.getLatestRateForSourceCurrency(from);
         var ratesMap = Optional.ofNullable(rateResponse)
                 .map(ExchangeRateExternalResponse::conversionRates)
                 .orElseThrow(() -> new IllegalStateException(String.format("Could not find rates for %s as a source currency.", from)));
@@ -51,10 +46,6 @@ public class ExchangeController {
     }
 
     public record Problem(String message, int code) {
-    }
-
-    public record ExchangeRateExternalResponse(@JsonProperty("time_last_update_unix") Long timeLastUpdateUnix,
-                                               @JsonProperty("conversion_rates") Map<String, Double> conversionRates) {
     }
 }
 
