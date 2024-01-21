@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+  logging:
+    level:
+      org.springframework: DEBUG
+external:
+  api:
+    exchange_rate:
+      uri: http://localhost:8081
+      token: "dummy-token"
+
+# Configuration for the "production" profile
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  logging:
+    level:
+      org.springframework: INFO
+external:
+  api:
+    exchange_rate:
+      uri: https://v6.exchangerate-api.com/v6/
+      token: ${ACCESS_TOKEN}

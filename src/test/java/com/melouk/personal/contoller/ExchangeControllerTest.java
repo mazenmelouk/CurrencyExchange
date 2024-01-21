@@ -1,7 +1,8 @@
 package com.melouk.personal.contoller;
 
 import com.melouk.personal.controller.ExchangeController;
-import com.melouk.personal.controller.ExchangeController.ExchangeRateExternalResponse;
+import com.melouk.personal.external.ExchangeRateClient;
+import com.melouk.personal.external.ExchangeRateExternalResponse;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,7 +18,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @WebMvcTest(ExchangeController.class)
@@ -35,13 +36,12 @@ class ExchangeControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private RestTemplate restTemplate;
+    private ExchangeRateClient exchangeRateClient;
 
     @ParameterizedTest(name = "Timestamp is {0}")
     @MethodSource
     void testConvertIsSuccessful(Long epoch, Matcher<?> timestampMatcher) throws Exception {
-        String uri = "https://v6.exchangerate-api.com/v6/dummy_token/latest/USD";
-        when(restTemplate.getForObject(uri, ExchangeRateExternalResponse.class))
+        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
                 .thenReturn(new ExchangeRateExternalResponse(epoch, Map.of("EUR", 1.1)));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
@@ -71,8 +71,7 @@ class ExchangeControllerTest {
 
     @Test
     void testConvertFailsToFindSourceCurrency() throws Exception {
-        String uri = "https://v6.exchangerate-api.com/v6/dummy_token/latest/USD";
-        when(restTemplate.getForObject(uri, ExchangeRateExternalResponse.class)).thenReturn(null);
+        when(exchangeRateClient.getLatestRateForSourceCurrency("USD")).thenReturn(null);
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
                         .param("from", "USD")
                         .param("to", "EUR")
@@ -87,8 +86,7 @@ class ExchangeControllerTest {
     @ParameterizedTest
     @MethodSource
     void testConvertFailsToFindTargetCurrency(Map<String, Double> rates) throws Exception {
-        String uri = "https://v6.exchangerate-api.com/v6/dummy_token/latest/USD";
-        when(restTemplate.getForObject(uri, ExchangeRateExternalResponse.class))
+        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
                 .thenReturn(new ExchangeRateExternalResponse(1704067200L, rates));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
@@ -112,8 +110,7 @@ class ExchangeControllerTest {
 
     @Test
     void testConvertFailsToMakeExternalCall() throws Exception {
-        String uri = "https://v6.exchangerate-api.com/v6/dummy_token/latest/USD";
-        when(restTemplate.getForObject(uri, ExchangeRateExternalResponse.class))
+        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
                 .thenThrow(RuntimeException.class);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
@@ -131,6 +128,7 @@ class ExchangeControllerTest {
     @ValueSource(doubles = {0, -1, -100})
     void testConvertFailsIfAmountIsNotPositive(double amount) throws Exception {
         String expectedMessage = "Parameter 'amount' needs to be greater than 0.";
+
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
                         .param("from", "USD")
                         .param("to", "EUR")
@@ -140,6 +138,8 @@ class ExchangeControllerTest {
                 .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(400)))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo(expectedMessage)));
+
+        verifyNoInteractions(exchangeRateClient);
     }
 
     @ParameterizedTest(name = "Missing parameter {1}")
@@ -151,12 +151,15 @@ class ExchangeControllerTest {
         var expectedMessage =
                 String.format("Required request parameter '%s' for method parameter type %s is not present",
                         missingParameter, missingType);
+
         mockMvc.perform(MockMvcRequestBuilders.get("/convert").params(parameters))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(400)))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo(expectedMessage)));
+
+        verifyNoInteractions(exchangeRateClient);
     }
 
     static Stream<Arguments> testConvertFailsForMissingInput() {
