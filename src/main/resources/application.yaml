@@ -8,11 +8,18 @@ spring:
   logging:
     level:
       org.springframework: DEBUG
+  datasource:
+    url: jdbc:postgresql://localhost:5432/currency_exchange
+    username: postgres
+    password: postgres
+  jpa.hibernate.ddl-auto: create
+  jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
 external:
   api:
     exchange_rate:
       uri: http://localhost:8081
       token: "dummy-token"
+
 
 # Configuration for the "production" profile
 ---
@@ -23,6 +30,12 @@ spring:
   logging:
     level:
       org.springframework: INFO
+  datasource:
+    url: jdbc:postgresql://localhost:5432/currency_exchange
+    username: postgres
+    password: postgres
+  jpa.hibernate.ddl-auto: create
+  jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
 external:
   api:
     exchange_rate:
