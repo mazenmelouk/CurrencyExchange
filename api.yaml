@@ -75,7 +75,7 @@ paths:
                 converted: 91.81
                 from: USD
                 to: EUR
-                timestamp: 1705767917
+                timestamp: 2024-01-27T20:12:06.113800Z
         '400':
           description: Bad Request for example missing a query parameter or negative values.
         '404':
