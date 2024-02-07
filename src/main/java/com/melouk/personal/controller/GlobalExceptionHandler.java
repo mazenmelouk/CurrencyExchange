@@ -1,5 +1,6 @@
 package com.melouk.personal.controller;
 
+import com.melouk.personal.service.NoRatesFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -16,7 +17,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(new ExchangeController.Problem(e.getMessage(), HttpStatus.BAD_REQUEST.value()), HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(IllegalStateException.class)
+    @ExceptionHandler(NoRatesFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ResponseEntity<ExchangeController.Problem> handleNotFoundException(Exception e) {
         return new ResponseEntity<>(new ExchangeController.Problem(e.getMessage(), HttpStatus.NOT_FOUND.value()), HttpStatus.NOT_FOUND);
