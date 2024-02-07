@@ -1,127 +1,95 @@
 package com.melouk.personal.contoller;
 
 import com.melouk.personal.controller.ExchangeController;
-import com.melouk.personal.external.ExchangeRateClient;
-import com.melouk.personal.external.ExchangeRateExternalResponse;
-import org.hamcrest.Matcher;
+import com.melouk.personal.service.ConversionResult;
+import com.melouk.personal.service.ExchangeRateService;
+import com.melouk.personal.service.ExchangeRequest;
+import com.melouk.personal.service.NoRatesFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ExchangeController.class)
 class ExchangeControllerTest {
-    private static final String TIMESTAMP_PATTERN = "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$";
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private ExchangeRateClient exchangeRateClient;
+    private ExchangeRateService exchangeRateService;
 
-    @ParameterizedTest(name = "Timestamp is {0}")
-    @MethodSource
-    void testConvertIsSuccessful(Long epoch, Matcher<?> timestampMatcher) throws Exception {
-        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
-                .thenReturn(new ExchangeRateExternalResponse(epoch, Map.of("EUR", 1.1)));
+    @Test
+    void testConvertIsSuccessful() throws Exception {
+        ConversionResult result = new ConversionResult("USD", "EUR", ZonedDateTime.now(), 10.0, 11.0);
+        when(exchangeRateService.convert(ExchangeRequest.builder().originalAmount(10.0).sourceCurrency("USD").targetCurrency("EUR").build()))
+                .thenReturn(result);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
                         .param("from", "USD")
                         .param("to", "EUR")
                         .param("amount", "10"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(5)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.from", equalTo("USD")))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.to", equalTo("EUR")))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.original", equalTo(10.0)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.converted", equalTo(11.0)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.timestamp", timestampMatcher));
-    }
-
-    static Stream<Arguments> testConvertIsSuccessful() {
-        var timestamp = ZonedDateTime.of(2024, 1, 1,
-                        0, 0, 0, 0,
-                        ZoneId.of("UTC"))
-                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        return Stream.of(
-                Arguments.of(1704067200L, equalTo(timestamp)),
-                Arguments.of(null, matchesPattern(TIMESTAMP_PATTERN))
-        );
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.*", hasSize(5)))
+                .andExpect(jsonPath("$.from", equalTo(result.from())))
+                .andExpect(jsonPath("$.to", equalTo(result.to())))
+                .andExpect(jsonPath("$.original", equalTo(result.original())))
+                .andExpect(jsonPath("$.converted", equalTo(result.converted())))
+                .andExpect(jsonPath("$.timestamp", equalTo(result.timestamp().withFixedOffsetZone().toString())));
     }
 
     @Test
-    void testConvertFailsToFindSourceCurrency() throws Exception {
-        when(exchangeRateClient.getLatestRateForSourceCurrency("USD")).thenReturn(null);
-        mockMvc.perform(MockMvcRequestBuilders.get("/convert")
-                        .param("from", "USD")
-                        .param("to", "EUR")
-                        .param("amount", "10"))
-                .andExpect(MockMvcResultMatchers.status().isNotFound())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(404)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo("Could not find rates for USD as a source currency.")));
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    void testConvertFailsToFindTargetCurrency(Map<String, Double> rates) throws Exception {
-        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
-                .thenReturn(new ExchangeRateExternalResponse(1704067200L, rates));
+    void testConvertFailsToFindCurrency() throws Exception {
+        when(exchangeRateService.convert(ArgumentMatchers.any(ExchangeRequest.class)))
+                .thenThrow(new NoRatesFoundException("Error"));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
                         .param("from", "USD")
                         .param("to", "EUR")
                         .param("amount", "10"))
-                .andExpect(MockMvcResultMatchers.status().isNotFound())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(404)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo("Could not find rates for EUR as a target currency.")));
-    }
-
-    static Stream<Arguments> testConvertFailsToFindTargetCurrency() {
-        return Stream.of(
-                        Map.of(),
-                        Map.of("JPY", 1.2)
-                )
-                .map(Arguments::of);
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.*", hasSize(2)))
+                .andExpect(jsonPath("$.code", equalTo(404)))
+                .andExpect(jsonPath("$.message", equalTo("Error")));
     }
 
     @Test
-    void testConvertFailsToMakeExternalCall() throws Exception {
-        when(exchangeRateClient.getLatestRateForSourceCurrency("USD"))
+    void testConvertFails() throws Exception {
+        when(exchangeRateService.convert(ArgumentMatchers.any(ExchangeRequest.class)))
                 .thenThrow(RuntimeException.class);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert")
                         .param("from", "USD")
                         .param("to", "EUR")
                         .param("amount", "10"))
-                .andExpect(MockMvcResultMatchers.status().isInternalServerError())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(500)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo("Something wrong happen, contact a specialist!")));
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.*", hasSize(2)))
+                .andExpect(jsonPath("$.code", equalTo(500)))
+                .andExpect(jsonPath("$.message", equalTo("Something wrong happen, contact a specialist!")));
     }
 
     @ParameterizedTest
@@ -133,13 +101,13 @@ class ExchangeControllerTest {
                         .param("from", "USD")
                         .param("to", "EUR")
                         .param("amount", Double.toString(amount)))
-                .andExpect(MockMvcResultMatchers.status().isBadRequest())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(400)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo(expectedMessage)));
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.*", hasSize(2)))
+                .andExpect(jsonPath("$.code", equalTo(400)))
+                .andExpect(jsonPath("$.message", equalTo(expectedMessage)));
 
-        verifyNoInteractions(exchangeRateClient);
+        verifyNoInteractions(exchangeRateService);
     }
 
     @ParameterizedTest(name = "Missing parameter {1}")
@@ -153,13 +121,13 @@ class ExchangeControllerTest {
                         missingParameter, missingType);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/convert").params(parameters))
-                .andExpect(MockMvcResultMatchers.status().isBadRequest())
-                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.*", hasSize(2)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.code", equalTo(400)))
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message", equalTo(expectedMessage)));
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.*", hasSize(2)))
+                .andExpect(jsonPath("$.code", equalTo(400)))
+                .andExpect(jsonPath("$.message", equalTo(expectedMessage)));
 
-        verifyNoInteractions(exchangeRateClient);
+        verifyNoInteractions(exchangeRateService);
     }
 
     static Stream<Arguments> testConvertFailsForMissingInput() {

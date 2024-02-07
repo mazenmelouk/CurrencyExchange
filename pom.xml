@@ -58,6 +58,10 @@
             <artifactId>hibernate-core</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
         <!--These libraries are only used for testing purposes, doesn't need to be in the final produced jar-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
