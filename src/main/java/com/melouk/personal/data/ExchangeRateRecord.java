@@ -14,6 +14,7 @@ import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,6 +36,9 @@ public final class ExchangeRateRecord {
     @Column(name = "rate")
     private final Map<String, Double> conversionRates;
 
+    ExchangeRateRecord(){
+        this(ZonedDateTime.now(),null, Collections.emptyMap());
+    }
     public ExchangeRateRecord(ZonedDateTime timeLastUpdateUnix,
                               String sourceCurrency,
                               Map<String, Double> conversionRates) {
