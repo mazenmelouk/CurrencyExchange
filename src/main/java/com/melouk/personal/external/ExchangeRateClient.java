@@ -5,8 +5,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Component
-public class ExchangeRateClient {
+@Component(ExchangeRateClient.API_EXCHANGE_RATE_PROVIDER)
+public class ExchangeRateClient implements ExchangeRateProvider {
+    public static final String API_EXCHANGE_RATE_PROVIDER = "apiExchangeRateProvider";
     private final String baseUri;
     private final String token;
     private final RestTemplate restTemplate;
@@ -20,6 +21,7 @@ public class ExchangeRateClient {
         this.restTemplate = restTemplate;
     }
 
+    @Override
     public ExchangeRateExternalResponse getLatestRateForSourceCurrency(String sourceCurrency) {
         var targetUri = UriComponentsBuilder.fromUriString(baseUri)
                 .pathSegment(token, "latest", sourceCurrency)
