@@ -8,10 +8,6 @@ spring:
   logging:
     level:
       org.springframework: DEBUG
-  datasource:
-    url: jdbc:postgresql://localhost:5432/currency_exchange
-    username: postgres
-    password: postgres
   jpa.hibernate.ddl-auto: create
   jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
 external:
