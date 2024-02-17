@@ -1,4 +1,4 @@
-Feature: Basic feature testing Spring Health endpoint
+Feature: Basic feature testing Spring Health endpoing
 
   Scenario:
     When I query application health endpoint
